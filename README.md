@@ -1,6 +1,6 @@
 # ziptree
 
-Display the contents of a ZIP file as a directory tree, without unpacking it (like [tree](https://oldmanprogrammer.net/source.php?dir=projects/tree)).
+Display the contents of an archive as a directory tree, without unpacking it (like [tree](https://oldmanprogrammer.net/source.php?dir=projects/tree)).
 
 ```
 Three Seminars wrt pattern filler.zip
@@ -19,6 +19,10 @@ Three Seminars wrt pattern filler.zip
 
 8 directories, 12 files
 ```
+
+## Supported formats
+
+`.zip`, `.tar`, `.tar.gz` / `.tgz`, `.tar.bz2` / `.tbz2`, `.tar.xz` / `.txz`, `.tar.zst` / `.tzst`, `.tar.lz4`
 
 ## Installation
 
@@ -39,19 +43,19 @@ cargo install --path .
 ## Usage
 
 ```
-ziptree [options] FILE.zip
+ziptree [options] FILE
 ```
 
 | Option | Description |
 |--------|-------------|
 | `-a`, `--all` | Show hidden files (dotfiles) |
-| `-m`, `--macos` | Show `__MACOSX` metadata entries (includes their `._*` contents; `-a` not required) |
-| `-s`, `--size` | Show uncompressed file sizes |
+| `-m`, `--macos` | Show `__MACOSX` metadata entries (ZIP only; `-a` not required) |
+| `-s`, `--size` | Show file sizes |
 
 ## Notes
 
-- `__MACOSX/` entries and dotfiles are hidden by default, matching the behaviour of `tree`.
-- `--macos` is the sole control for `__MACOSX` content. Its `._*` files are macOS metadata, not user dotfiles, so `-a` is not needed alongside it.
+- Dotfiles are hidden by default, matching the behaviour of `tree`. Use `-a` to show them.
+- `__MACOSX/` entries are ZIP-specific macOS metadata. `-m` is their sole control; `-a` is not needed alongside it.
 - Works with ZIPs that omit explicit directory entries - the hierarchy is inferred from file paths.
 
 ## Comparison with `ouch list --tree`
@@ -67,7 +71,7 @@ ziptree [options] FILE.zip
 | Dirs sorted before files | yes | no (archive order) |
 | Entries sorted alphabetically | yes | no (archive order) |
 | Summary line (`N directories, M files`) | yes | no |
-| Formats supported | ZIP only | ZIP, tar, gz, xz, bz2, zst, 7z, rar, ... |
+| Formats supported | zip, tar, tar.gz, tar.bz2, tar.xz, tar.zst, tar.lz4 | zip, tar, gz, xz, bz2, zst, 7z, rar, ... |
 
 ## License
 

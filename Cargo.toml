@@ -2,12 +2,18 @@
 name = "ziptree"
 version = "0.1.0"
 edition = "2024"
-description = "Display ZIP file contents as a directory tree, without unpacking"
+description = "Display archive contents as a directory tree, without unpacking"
 license = "MIT"
 repository = "https://github.com/bwagner/ziptree-rs"
-keywords = ["zip", "tree", "cli", "archive"]
+keywords = ["zip", "tar", "tree", "cli", "archive"]
 categories = ["command-line-utilities", "compression"]
 
 [dependencies]
 zip = "2"
 clap = { version = "4", features = ["derive"] }
+tar = "0.4"
+flate2 = "1"
+bzip2 = "0.5"
+xz2 = "0.1"
+zstd = "0.13"
+lz4_flex = "0.11"

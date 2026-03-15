@@ -1,27 +1,62 @@
 use std::collections::HashMap;
-use std::io::{self, Write};
+use std::fs::File;
+use std::io::{self, BufReader, Read, Write};
 use std::path::Path;
 
+use bzip2::read::BzDecoder;
 use clap::Parser;
+use flate2::read::GzDecoder;
+use xz2::read::XzDecoder;
 use zip::ZipArchive;
 
 #[derive(Parser)]
-#[command(about = "Display ZIP file contents as a tree.")]
+#[command(about = "Display archive contents as a tree.")]
 struct Cli {
-    #[arg(name = "FILE.zip")]
-    zip_path: String,
+    #[arg(name = "FILE")]
+    path: String,
 
     /// Show hidden files (dotfiles)
-    #[arg(short = 'a', long = "all", name = "show_hidden")]
+    #[arg(short = 'a', long = "all")]
     show_hidden: bool,
 
-    /// Show __MACOSX metadata entries (includes their ._* contents; -a not required)
-    #[arg(short = 'm', long = "macos", name = "show_macos")]
+    /// Show __MACOSX metadata entries (ZIP only; -a not required)
+    #[arg(short = 'm', long = "macos")]
     show_macos: bool,
 
     /// Show file sizes
-    #[arg(short = 's', long = "size", name = "show_size")]
+    #[arg(short = 's', long = "size")]
     show_size: bool,
+}
+
+enum Format {
+    Zip,
+    Tar,
+    TarGz,
+    TarBz2,
+    TarXz,
+    TarZst,
+    TarLz4,
+}
+
+fn detect_format(path: &str) -> Option<Format> {
+    let p = path.to_lowercase();
+    if p.ends_with(".zip") {
+        Some(Format::Zip)
+    } else if p.ends_with(".tar.gz") || p.ends_with(".tgz") {
+        Some(Format::TarGz)
+    } else if p.ends_with(".tar.bz2") || p.ends_with(".tbz2") {
+        Some(Format::TarBz2)
+    } else if p.ends_with(".tar.xz") || p.ends_with(".txz") {
+        Some(Format::TarXz)
+    } else if p.ends_with(".tar.zst") || p.ends_with(".tzst") {
+        Some(Format::TarZst)
+    } else if p.ends_with(".tar.lz4") {
+        Some(Format::TarLz4)
+    } else if p.ends_with(".tar") {
+        Some(Format::Tar)
+    } else {
+        None
+    }
 }
 
 enum Node {
@@ -108,19 +143,14 @@ fn render_tree(tree: &HashMap<String, Node>, show_size: bool, prefix: &str, out:
         let connector = if is_last { "└── " } else { "├── " };
         writeln!(out, "{}{}{}", prefix, connector, name).unwrap();
         let ext = if is_last { "    " } else { "│   " };
-        let new_prefix = format!("{}{}", prefix, ext);
-        render_tree(subtree, show_size, &new_prefix, out);
+        render_tree(subtree, show_size, &format!("{}{}", prefix, ext), out);
         idx += 1;
     }
 
     for (name, size) in &files {
         let is_last = idx == total - 1;
         let connector = if is_last { "└── " } else { "├── " };
-        let size_str = if show_size {
-            format_size(*size)
-        } else {
-            String::new()
-        };
+        let size_str = if show_size { format_size(*size) } else { String::new() };
         writeln!(out, "{}{}{}{}", prefix, connector, size_str, name).unwrap();
         idx += 1;
     }
@@ -137,9 +167,7 @@ fn count_tree(tree: &HashMap<String, Node>) -> (usize, usize) {
                 dirs += d;
                 files += f;
             }
-            Node::File(_) => {
-                files += 1;
-            }
+            Node::File(_) => files += 1,
         }
     }
     (dirs, files)
@@ -149,39 +177,82 @@ fn is_hidden(name: &str, show_macos: bool) -> bool {
     if show_macos && name.starts_with("__MACOSX/") {
         return false;
     }
-    let stripped = name.trim_end_matches('/');
-    stripped.split('/').any(|p| p.starts_with('.'))
+    name.trim_end_matches('/').split('/').any(|p| p.starts_with('.'))
+}
+
+fn read_zip_entries(path: &str) -> Result<Vec<(String, u64)>, Box<dyn std::error::Error>> {
+    let mut archive = ZipArchive::new(File::open(path)?)?;
+    let mut entries = Vec::new();
+    for i in 0..archive.len() {
+        let entry = archive.by_index(i)?;
+        entries.push((entry.name().to_string(), entry.size()));
+    }
+    Ok(entries)
+}
+
+fn read_tar_entries<R: Read>(reader: R) -> Result<Vec<(String, u64)>, Box<dyn std::error::Error>> {
+    let mut archive = tar::Archive::new(reader);
+    let mut entries = Vec::new();
+    for entry in archive.entries()? {
+        let entry = entry?;
+        let raw = entry.path()?.to_string_lossy().into_owned();
+        // Strip leading "./" that tar commonly adds; skip the bare "." root entry
+        let path = raw.strip_prefix("./").unwrap_or(&raw).to_string();
+        if path.is_empty() || path == "." {
+            continue;
+        }
+        let is_dir = entry.header().entry_type().is_dir();
+        let size = entry.header().size()?;
+        if is_dir {
+            let name = if path.ends_with('/') { path } else { format!("{}/", path) };
+            entries.push((name, 0));
+        } else {
+            entries.push((path, size));
+        }
+    }
+    Ok(entries)
+}
+
+fn read_entries(path: &str, format: &Format) -> Result<Vec<(String, u64)>, Box<dyn std::error::Error>> {
+    let buf = || -> Result<BufReader<File>, Box<dyn std::error::Error>> {
+        Ok(BufReader::new(File::open(path)?))
+    };
+    match format {
+        Format::Zip => read_zip_entries(path),
+        Format::Tar => read_tar_entries(buf()?),
+        Format::TarGz => read_tar_entries(GzDecoder::new(buf()?)),
+        Format::TarBz2 => read_tar_entries(BzDecoder::new(buf()?)),
+        Format::TarXz => read_tar_entries(XzDecoder::new(buf()?)),
+        Format::TarZst => read_tar_entries(zstd::Decoder::new(buf()?)?),
+        Format::TarLz4 => read_tar_entries(lz4_flex::frame::FrameDecoder::new(buf()?)),
+    }
 }
 
 fn ziptree(
-    zip_path: &str,
+    path: &str,
     show_hidden: bool,
     show_macos: bool,
     show_size: bool,
     out: &mut dyn Write,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let file = std::fs::File::open(zip_path)?;
-    let mut archive = ZipArchive::new(file)?;
+    let format = detect_format(path)
+        .ok_or_else(|| format!("unsupported format: {}", path))?;
 
-    let mut names: Vec<(String, u64)> = Vec::new();
-    for i in 0..archive.len() {
-        let entry = archive.by_index(i)?;
-        names.push((entry.name().to_string(), entry.size()));
-    }
+    let mut entries = read_entries(path, &format)?;
 
     if !show_macos {
-        names.retain(|(n, _)| !n.starts_with("__MACOSX/"));
+        entries.retain(|(n, _)| !n.starts_with("__MACOSX/"));
     }
     if !show_hidden {
-        names.retain(|(n, _)| !is_hidden(n, show_macos));
+        entries.retain(|(n, _)| !is_hidden(n, show_macos));
     }
 
-    let tree = build_tree(&names);
+    let tree = build_tree(&entries);
 
-    let display_name = Path::new(zip_path)
+    let display_name = Path::new(path)
         .file_name()
         .and_then(|n| n.to_str())
-        .unwrap_or(zip_path);
+        .unwrap_or(path);
     writeln!(out, "{}", display_name)?;
     render_tree(&tree, show_size, "", out);
 
@@ -197,13 +268,7 @@ fn main() {
     let cli = Cli::parse();
     let stdout = io::stdout();
     let mut out = stdout.lock();
-    if let Err(e) = ziptree(
-        &cli.zip_path,
-        cli.show_hidden,
-        cli.show_macos,
-        cli.show_size,
-        &mut out,
-    ) {
+    if let Err(e) = ziptree(&cli.path, cli.show_hidden, cli.show_macos, cli.show_size, &mut out) {
         eprintln!("error: {}", e);
         std::process::exit(1);
     }
