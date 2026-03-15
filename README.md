@@ -50,7 +50,8 @@ ziptree [options] FILE
 |--------|-------------|
 | `-a`, `--all` | Show hidden files (dotfiles) |
 | `-m`, `--macos` | Show `__MACOSX` metadata entries (ZIP only; `-a` not required) |
-| `-s`, `--size` | Show file sizes |
+| `-s`, `--size` | Show file sizes (human-readable: K, M, G, T) |
+| `-b`, `--bytes` | Show file sizes in bytes (implies `-s`) |
 
 ## Notes
 
@@ -67,7 +68,8 @@ ziptree [options] FILE
 | Dotfiles hidden by default | yes (like `tree`) | no |
 | `-a` to reveal dotfiles | yes | - |
 | `-m` to reveal `__MACOSX` entries | yes | - |
-| `-s` to show file sizes | yes | - |
+| `-s` to show file sizes (human-readable) | yes | - |
+| `-b` to show file sizes in bytes | yes | - |
 | Dirs sorted before files | yes | no (archive order) |
 | Entries sorted alphabetically | yes | no (archive order) |
 | Summary line (`N directories, M files`) | yes | no |

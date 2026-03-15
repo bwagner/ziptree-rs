@@ -23,9 +23,19 @@ struct Cli {
     #[arg(short = 'm', long = "macos")]
     show_macos: bool,
 
-    /// Show file sizes
+    /// Show file sizes (human-readable: K, M, G, T)
     #[arg(short = 's', long = "size")]
     show_size: bool,
+
+    /// Show file sizes in bytes (implies -s)
+    #[arg(short = 'b', long = "bytes")]
+    show_bytes: bool,
+}
+
+enum SizeFormat {
+    None,
+    Human,
+    Bytes,
 }
 
 enum Format {
@@ -53,7 +63,7 @@ fn detect_format(path: &str) -> Option<Format> {
         Some(Format::TarXz)
     } else if p.ends_with(".tar.zst") || p.ends_with(".tzst") {
         Some(Format::TarZst)
-    } else if p.ends_with(".tar.lz4") {
+    } else if p.ends_with(".tar.lz4") || p.ends_with(".tlz4") {
         Some(Format::TarLz4)
     } else if p.ends_with(".tar") {
         Some(Format::Tar)
@@ -106,7 +116,23 @@ fn build_tree(names: &[(String, u64)]) -> HashMap<String, Node> {
     tree
 }
 
-fn format_size(size: u64) -> String {
+fn human_size(n: u64) -> String {
+    let units = ["B", "K", "M", "G", "T"];
+    let mut val = n as f64;
+    for unit in &units {
+        if val < 1024.0 {
+            return if *unit == "B" {
+                format!("{:.0} {}", val, unit)
+            } else {
+                format!("{:.1} {}", val, unit)
+            };
+        }
+        val /= 1024.0;
+    }
+    format!("{:.1} P", val)
+}
+
+fn bytes_size(size: u64) -> String {
     let s = size.to_string();
     let mut with_commas = String::new();
     for (i, c) in s.chars().rev().enumerate() {
@@ -119,7 +145,15 @@ fn format_size(size: u64) -> String {
     format!("[{:>12}]  ", formatted)
 }
 
-fn render_tree(tree: &HashMap<String, Node>, show_size: bool, prefix: &str, out: &mut dyn Write) {
+fn format_size(size: u64, fmt: &SizeFormat) -> String {
+    match fmt {
+        SizeFormat::Human => format!("[{:>7}]  ", human_size(size)),
+        SizeFormat::Bytes => bytes_size(size),
+        SizeFormat::None => String::new(),
+    }
+}
+
+fn render_tree(tree: &HashMap<String, Node>, fmt: &SizeFormat, prefix: &str, out: &mut dyn Write) {
     let mut dirs: Vec<(&str, &HashMap<String, Node>)> = tree
         .iter()
         .filter_map(|(k, v)| match v {
@@ -146,15 +180,14 @@ fn render_tree(tree: &HashMap<String, Node>, show_size: bool, prefix: &str, out:
         let connector = if is_last { "└── " } else { "├── " };
         writeln!(out, "{}{}{}", prefix, connector, name).unwrap();
         let ext = if is_last { "    " } else { "│   " };
-        render_tree(subtree, show_size, &format!("{}{}", prefix, ext), out);
+        render_tree(subtree, fmt, &format!("{}{}", prefix, ext), out);
         idx += 1;
     }
 
     for (name, size) in &files {
         let is_last = idx == total - 1;
         let connector = if is_last { "└── " } else { "├── " };
-        let size_str = if show_size { format_size(*size) } else { String::new() };
-        writeln!(out, "{}{}{}{}", prefix, connector, size_str, name).unwrap();
+        writeln!(out, "{}{}{}{}", prefix, connector, format_size(*size, fmt), name).unwrap();
         idx += 1;
     }
 }
@@ -251,7 +284,7 @@ fn ziptree(
     path: &str,
     show_hidden: bool,
     show_macos: bool,
-    show_size: bool,
+    size_format: SizeFormat,
     out: &mut dyn Write,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let format = detect_format(path)
@@ -273,7 +306,7 @@ fn ziptree(
         .and_then(|n| n.to_str())
         .unwrap_or(path);
     writeln!(out, "{}", display_name)?;
-    render_tree(&tree, show_size, "", out);
+    render_tree(&tree, &size_format, "", out);
 
     let (dirs, files) = count_tree(&tree);
     let d = if dirs == 1 { "directory" } else { "directories" };
@@ -285,9 +318,16 @@ fn ziptree(
 
 fn main() {
     let cli = Cli::parse();
+    let size_format = if cli.show_bytes {
+        SizeFormat::Bytes
+    } else if cli.show_size {
+        SizeFormat::Human
+    } else {
+        SizeFormat::None
+    };
     let stdout = io::stdout();
     let mut out = stdout.lock();
-    if let Err(e) = ziptree(&cli.path, cli.show_hidden, cli.show_macos, cli.show_size, &mut out) {
+    if let Err(e) = ziptree(&cli.path, cli.show_hidden, cli.show_macos, size_format, &mut out) {
         eprintln!("error: {}", e);
         std::process::exit(1);
     }
