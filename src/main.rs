@@ -30,6 +30,7 @@ struct Cli {
 
 enum Format {
     Zip,
+    SevenZ,
     Tar,
     TarGz,
     TarBz2,
@@ -42,6 +43,8 @@ fn detect_format(path: &str) -> Option<Format> {
     let p = path.to_lowercase();
     if p.ends_with(".zip") {
         Some(Format::Zip)
+    } else if p.ends_with(".7z") {
+        Some(Format::SevenZ)
     } else if p.ends_with(".tar.gz") || p.ends_with(".tgz") {
         Some(Format::TarGz)
     } else if p.ends_with(".tar.bz2") || p.ends_with(".tbz2") {
@@ -213,12 +216,28 @@ fn read_tar_entries<R: Read>(reader: R) -> Result<Vec<(String, u64)>, Box<dyn st
     Ok(entries)
 }
 
+fn read_7z_entries(path: &str) -> Result<Vec<(String, u64)>, Box<dyn std::error::Error>> {
+    let reader = sevenz_rust2::SevenZReader::open(path, sevenz_rust2::Password::empty())?;
+    let mut entries = Vec::new();
+    for entry in &reader.archive().files {
+        let name = entry.name.clone();
+        if entry.is_directory {
+            let name = if name.ends_with('/') { name } else { format!("{}/", name) };
+            entries.push((name, 0));
+        } else {
+            entries.push((name, entry.size));
+        }
+    }
+    Ok(entries)
+}
+
 fn read_entries(path: &str, format: &Format) -> Result<Vec<(String, u64)>, Box<dyn std::error::Error>> {
     let buf = || -> Result<BufReader<File>, Box<dyn std::error::Error>> {
         Ok(BufReader::new(File::open(path)?))
     };
     match format {
         Format::Zip => read_zip_entries(path),
+        Format::SevenZ => read_7z_entries(path),
         Format::Tar => read_tar_entries(buf()?),
         Format::TarGz => read_tar_entries(GzDecoder::new(buf()?)),
         Format::TarBz2 => read_tar_entries(BzDecoder::new(buf()?)),

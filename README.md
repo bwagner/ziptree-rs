@@ -22,7 +22,7 @@ Three Seminars wrt pattern filler.zip
 
 ## Supported formats
 
-`.zip`, `.tar`, `.tar.gz` / `.tgz`, `.tar.bz2` / `.tbz2`, `.tar.xz` / `.txz`, `.tar.zst` / `.tzst`, `.tar.lz4`
+`.zip`, `.7z`, `.tar`, `.tar.gz` / `.tgz`, `.tar.bz2` / `.tbz2`, `.tar.xz` / `.txz`, `.tar.zst` / `.tzst`, `.tar.lz4`
 
 ## Installation
 
@@ -71,7 +71,7 @@ ziptree [options] FILE
 | Dirs sorted before files | yes | no (archive order) |
 | Entries sorted alphabetically | yes | no (archive order) |
 | Summary line (`N directories, M files`) | yes | no |
-| Formats supported | zip, tar, tar.gz, tar.bz2, tar.xz, tar.zst, tar.lz4 | zip, tar, gz, xz, bz2, zst, 7z, rar, ... |
+| Formats supported | zip, 7z, tar, tar.gz, tar.bz2, tar.xz, tar.zst, tar.lz4 | zip, tar, gz, xz, bz2, zst, 7z, rar, ... |
 
 ## License
 
