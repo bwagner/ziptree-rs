@@ -54,6 +54,21 @@ ziptree [options] FILE.zip
 - `--macos` is the sole control for `__MACOSX` content. Its `._*` files are macOS metadata, not user dotfiles, so `-a` is not needed alongside it.
 - Works with ZIPs that omit explicit directory entries - the hierarchy is inferred from file paths.
 
+## Comparison with `ouch list --tree`
+
+[ouch](https://github.com/ouch-org/ouch) is a general-purpose archive tool that also supports tree output. Differences:
+
+| | `ziptree` | `ouch list --tree` |
+|---|---|---|
+| Dotfiles hidden by default | yes (like `tree`) | no |
+| `-a` to reveal dotfiles | yes | - |
+| `-m` to reveal `__MACOSX` entries | yes | - |
+| `-s` to show file sizes | yes | - |
+| Dirs sorted before files | yes | no (archive order) |
+| Entries sorted alphabetically | yes | no (archive order) |
+| Summary line (`N directories, M files`) | yes | no |
+| Formats supported | ZIP only | ZIP, tar, gz, xz, bz2, zst, 7z, rar, ... |
+
 ## License
 
 [MIT](LICENSE)
