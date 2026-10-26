@@ -187,7 +187,15 @@ fn render_tree(tree: &HashMap<String, Node>, fmt: &SizeFormat, prefix: &str, out
     for (name, size) in &files {
         let is_last = idx == total - 1;
         let connector = if is_last { "└── " } else { "├── " };
-        writeln!(out, "{}{}{}{}", prefix, connector, format_size(*size, fmt), name).unwrap();
+        writeln!(
+            out,
+            "{}{}{}{}",
+            prefix,
+            connector,
+            format_size(*size, fmt),
+            name
+        )
+        .unwrap();
         idx += 1;
     }
 }
@@ -213,7 +221,9 @@ fn is_hidden(name: &str, show_macos: bool) -> bool {
     if show_macos && name.starts_with("__MACOSX/") {
         return false;
     }
-    name.trim_end_matches('/').split('/').any(|p| p.starts_with('.'))
+    name.trim_end_matches('/')
+        .split('/')
+        .any(|p| p.starts_with('.'))
 }
 
 fn read_zip_entries(path: &str) -> Result<Vec<(String, u64)>, Box<dyn std::error::Error>> {
@@ -240,7 +250,11 @@ fn read_tar_entries<R: Read>(reader: R) -> Result<Vec<(String, u64)>, Box<dyn st
         let is_dir = entry.header().entry_type().is_dir();
         let size = entry.header().size()?;
         if is_dir {
-            let name = if path.ends_with('/') { path } else { format!("{}/", path) };
+            let name = if path.ends_with('/') {
+                path
+            } else {
+                format!("{}/", path)
+            };
             entries.push((name, 0));
         } else {
             entries.push((path, size));
@@ -255,7 +269,11 @@ fn read_7z_entries(path: &str) -> Result<Vec<(String, u64)>, Box<dyn std::error:
     for entry in &reader.archive().files {
         let name = entry.name.clone();
         if entry.is_directory {
-            let name = if name.ends_with('/') { name } else { format!("{}/", name) };
+            let name = if name.ends_with('/') {
+                name
+            } else {
+                format!("{}/", name)
+            };
             entries.push((name, 0));
         } else {
             entries.push((name, entry.size));
@@ -264,7 +282,10 @@ fn read_7z_entries(path: &str) -> Result<Vec<(String, u64)>, Box<dyn std::error:
     Ok(entries)
 }
 
-fn read_entries(path: &str, format: &Format) -> Result<Vec<(String, u64)>, Box<dyn std::error::Error>> {
+fn read_entries(
+    path: &str,
+    format: &Format,
+) -> Result<Vec<(String, u64)>, Box<dyn std::error::Error>> {
     let buf = || -> Result<BufReader<File>, Box<dyn std::error::Error>> {
         Ok(BufReader::new(File::open(path)?))
     };
@@ -287,8 +308,7 @@ fn ziptree(
     size_format: SizeFormat,
     out: &mut dyn Write,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let format = detect_format(path)
-        .ok_or_else(|| format!("unsupported format: {}", path))?;
+    let format = detect_format(path).ok_or_else(|| format!("unsupported format: {}", path))?;
 
     let mut entries = read_entries(path, &format)?;
 
@@ -309,7 +329,11 @@ fn ziptree(
     render_tree(&tree, &size_format, "", out);
 
     let (dirs, files) = count_tree(&tree);
-    let d = if dirs == 1 { "directory" } else { "directories" };
+    let d = if dirs == 1 {
+        "directory"
+    } else {
+        "directories"
+    };
     let f = if files == 1 { "file" } else { "files" };
     writeln!(out, "\n{} {}, {} {}", dirs, d, files, f)?;
 
@@ -327,7 +351,13 @@ fn main() {
     };
     let stdout = io::stdout();
     let mut out = stdout.lock();
-    if let Err(e) = ziptree(&cli.path, cli.show_hidden, cli.show_macos, size_format, &mut out) {
+    if let Err(e) = ziptree(
+        &cli.path,
+        cli.show_hidden,
+        cli.show_macos,
+        size_format,
+        &mut out,
+    ) {
         eprintln!("error: {}", e);
         std::process::exit(1);
     }
