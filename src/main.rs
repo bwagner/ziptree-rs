@@ -221,7 +221,7 @@ fn read_zip_entries(path: &str) -> Result<Vec<(String, u64)>, Box<dyn std::error
     let mut entries = Vec::new();
     for i in 0..archive.len() {
         let entry = archive.by_index(i)?;
-        entries.push((entry.name().to_string(), entry.size()));
+        entries.push((entry.name()?.to_string(), entry.size()));
     }
     Ok(entries)
 }
