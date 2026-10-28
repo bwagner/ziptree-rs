@@ -9,12 +9,12 @@ keywords = ["zip", "tar", "tree", "cli", "archive"]
 categories = ["command-line-utilities", "compression"]
 
 [dependencies]
-zip = "9"
+zip = "9.1"
 clap = { version = "4", features = ["derive"] }
 tar = "0.4"
 flate2 = "1"
 bzip2 = "0.5"
 xz2 = "0.1"
-zstd = "0.13"
+zstd = "0.14"
 lz4_flex = "0.11"
 sevenz-rust2 = "0.7"
