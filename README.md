@@ -75,6 +75,20 @@ ziptree [options] FILE
 | Summary line (`N directories, M files`) | yes | no |
 | Formats supported | zip, 7z, tar, tar.gz, tar.bz2, tar.xz, tar.zst, tar.lz4 | zip, tar, gz, xz, bz2, zst, 7z, rar, ... |
 
+## Testing
+
+```bash
+cargo test
+```
+
+The tests in `tests/cli.rs` run the binary on the small archives in `tests/fixtures/` and compare its output with hand-written expected trees. They cover every format, the options, and file names in UTF-8, CP437 (ZIP), invalid UTF-8 (tar), NFC/NFD and non-BMP characters (7z).
+
+The fixtures are committed. To regenerate them (needs [uv](https://docs.astral.sh/uv/), plus `lz4` and `7z` on the `PATH`):
+
+```bash
+tests/fixtures/make_fixtures.py
+```
+
 ## License
 
 [MIT](LICENSE)
