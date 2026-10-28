@@ -22,7 +22,7 @@ Three Seminars wrt pattern filler.zip
 
 ## Supported formats
 
-`.zip`, `.7z`, `.tar`, `.tar.gz` / `.tgz`, `.tar.bz2` / `.tbz2`, `.tar.xz` / `.txz`, `.tar.zst` / `.tzst`, `.tar.lz4`
+`.zip`, `.7z`, `.tar`, `.tar.gz` / `.tgz`, `.tar.bz2` / `.tbz2`, `.tar.xz` / `.txz`, `.tar.zst` / `.tzst`, `.tar.lz4` / `.tlz4`
 
 ## Installation
 
