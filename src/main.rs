@@ -264,7 +264,7 @@ fn read_tar_entries<R: Read>(reader: R) -> Result<Vec<(String, u64)>, Box<dyn st
 }
 
 fn read_7z_entries(path: &str) -> Result<Vec<(String, u64)>, Box<dyn std::error::Error>> {
-    let reader = sevenz_rust2::SevenZReader::open(path, sevenz_rust2::Password::empty())?;
+    let reader = sevenz_rust2::ArchiveReader::open(path, sevenz_rust2::Password::empty())?;
     let mut entries = Vec::new();
     for entry in &reader.archive().files {
         let name = entry.name.clone();

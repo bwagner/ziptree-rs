@@ -17,4 +17,4 @@ bzip2 = "0.5"
 xz2 = "0.1"
 zstd = "0.14"
 lz4_flex = "0.11"
-sevenz-rust2 = "0.7"
+sevenz-rust2 = { version = "0.24", default-features = false }
